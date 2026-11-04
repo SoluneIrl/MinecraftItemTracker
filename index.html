@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f3e9d2" id="themeColor">
+    <script>
+        try{var t=(JSON.parse(localStorage.getItem("mc-site-v1")||"{}")).theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+            var s=JSON.parse(localStorage.getItem("mc-site-v1")||"{}"),d=document.documentElement;if(s.tier)d.dataset.tier=s.tier;d.dataset.view=s.view==="grid"?"grid":"table";d.dataset.theme=t;document.getElementById("themeColor").content=t==="dark"?"#1c1510":"#f3e9d2";}catch(e){}
+    </script>
+    <link rel="preload" href="data.csv" as="fetch" crossorigin>
+    <title>Minecraft Item Tracker</title>
+    <meta name="description" content="Track every Minecraft item you have collected.">
+    <link rel="icon" type="image/png" href="Assets/Resources/Logo.png">
+    <link rel="apple-touch-icon" href="Assets/Resources/Logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Sans:wght@400;600&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Sans:wght@400;600&display=swap"></noscript>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+<div class="page">
+    <header class="rise" style="--d:0ms">
+        <div class="brand">
+            <img class="logo" id="logo" alt="Minecraft Item Tracker logo" width="72" height="72">
+            <div>
+                <h1>Minecraft Item Tracker</h1>
+                <p class="sub">Every item you have collected, all in one place.</p>
+            </div>
+        </div>
+        <button class="btn theme-btn" id="theme" aria-label="Switch theme"><span id="themeIcon" class="ticon" aria-hidden="true"></span></button>
+    </header>
+
+    <div id="error"></div>
+
+    <section class="xp rise" style="--d:90ms" aria-label="Progress">
+        <div class="xp-top">
+            <div>
+                <p class="xp-label">Collection progress</p>
+                <p id="xpText">Loading…</p>
+            </div>
+            <span id="xpPct">0%</span>
+        </div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
+    </section>
+
+    <div class="toolbar rise" style="--d:180ms">
+        <input id="q" type="search" placeholder="Search items" aria-label="Search items">
+        <div class="seg" id="filters" role="group" aria-label="Filter">
+            <button data-filter="all" aria-pressed="true"><span>All</span><small></small></button>
+            <button data-filter="got" aria-pressed="false"><span>Acquired</span><small></small></button>
+            <button data-filter="missing" aria-pressed="false"><span>Missing</span><small></small></button>
+        </div>
+        <div class="seg" id="views" role="group" aria-label="View">
+            <button data-view="table" aria-label="Table view"><i class="vicon" style="--icon:url('Assets/Resources/Table.svg')" aria-hidden="true"></i><span>Table</span></button>
+            <button data-view="grid" aria-label="Grid view"><i class="vicon" style="--icon:url('Assets/Resources/Grid.svg')" aria-hidden="true"></i><span>Grid</span></button>
+        </div>
+    </div>
+
+    <main id="list">
+        <div class="skel" aria-hidden="true">
+            <div class="tablewrap sk-table">
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:34%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:46%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:28%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:40%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:31%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:44%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:36%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:26%"></i><i class="sk-b sw"></i></div>
+                <div class="skrow"><i class="sk-b n"></i><i class="sk-b sl"></i><i class="sk-b nm" style="width:42%"></i><i class="sk-b sw"></i></div>
+            </div>
+            <div class="grid sk-grid">
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+                <div class="skcard"><i class="sk-b ic"></i><i class="sk-b l1"></i><i class="sk-b l2"></i></div>
+            </div>
+        </div>
+    </main>
+    <p class="empty" id="empty" hidden>No items match your search.</p>
+
+    <footer class="rise" style="--d:520ms">
+        <p class="credit">Made by <b>Solune</b><span class="dot" aria-hidden="true"></span>Minecraft Version: 26.3</p>
+        <div class="tools">
+            <button class="chip" id="import" title="Restore progress from a CSV you exported earlier">Import</button>
+            <button class="chip" id="export" title="Download your progress as a CSV backup">Export</button>
+            <input type="file" id="importFile" accept=".csv,text/csv" hidden>
+            <button class="chip danger" id="reset">Reset</button>
+        </div>
+    </footer>
+</div>
+<button class="totop" id="toTop" aria-label="Back to top" tabindex="-1"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
