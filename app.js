@@ -3,40 +3,52 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 let items = [], csvItems = [];
-let st = { acq: {}, view: "table", theme: null };
+let st = { acq: {}, view: "table" };
 try { Object.assign(st, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
 let filter = "all", query = "";
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
-const has = i => i.name in st.acq ? st.acq[i.name] : i.acquired;
+const has = i => Object.prototype.hasOwnProperty.call(st.acq, i.name) ? st.acq[i.name] : i.acquired;
 
 const nameFromImage = f => f.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().replace(/(^|\s)(\S)/g, (m, sp, c) => sp + c.toUpperCase());
+const titleFromImage = f => f.replace(/\.[^.]+$/, "").replace(/_+/g, " ").replace(/\s+/g, " ").trim().replace(/^./, c => c.toUpperCase());
+
+function splitCSV(text) {
+    const rows = [];
+    let row = [], cell = "", q = false;
+    for (let k = 0; k < text.length; k++) {
+        const ch = text[k];
+        if (q) {
+            if (ch === '"') { if (text[k + 1] === '"') { cell += '"'; k++; } else q = false; }
+            else cell += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ",") { row.push(cell); cell = ""; }
+        else if (ch === "\n" || ch === "\r") {
+            if (ch === "\r" && text[k + 1] === "\n") k++;
+            row.push(cell); cell = "";
+            if (row.some(c => c.trim())) rows.push(row);
+            row = [];
+        } else cell += ch;
+    }
+    row.push(cell);
+    if (row.some(c => c.trim())) rows.push(row);
+    return rows;
+}
 
 function parseCSV(text) {
-    const lines = text.replace(/^\uFEFF/, "").replace(/\r/g, "").split("\n").filter(l => l.trim());
-    const head = lines.shift().split(",").map(h => h.trim().toLowerCase());
-    return lines.map(l => {
-        const c = l.split(",").map(x => x.trim()), r = {};
-        head.forEach((h, i) => r[h] = c[i] || "");
+    const lines = splitCSV(text.replace(/^\uFEFF/, ""));
+    if (!lines.length) return [];
+    const head = lines.shift().map(h => h.trim().toLowerCase());
+    return lines.map(c => {
+        const r = {};
+        head.forEach((h, i) => r[h] = (c[i] || "").trim());
         r.name = r.name || nameFromImage(r.image || "");
+        r.title = titleFromImage(r.image || "") || r.name;
         r.number = Number(r.number) || 0;
         r.acquired = ["yes", "y", "true", "1"].includes(r.acquired.toLowerCase());
         return r;
     });
 }
-
-function applyTheme() {
-    const t = st.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    document.documentElement.dataset.theme = t;
-    syncMeta();
-    const icon = $("#themeIcon");
-    icon.style.setProperty("--icon", `url("Assets/Resources/${t === "dark" ? "Sun" : "Moon"}.svg")`);
-    $("#theme").setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
-    const logo = $("#logo");
-    if (logo) {
-        logo.onerror = () => { if (!logo.src.endsWith("/Logo.png")) logo.src = "Assets/Resources/Logo.png"; else logo.remove(); };
-        logo.src = "Assets/Resources/" + (t === "dark" ? "Logo%20Inverse.png" : "Logo.png");
-    }
-}
+const csvCell = v => /[",\n\r]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
 
 const syncMeta = () => {
     const c = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
@@ -111,24 +123,24 @@ let listView = [];
 const src = i => IMG_DIR + encodeURIComponent(i.image);
 const img = i => `<div class="slot" data-i="${i.idx}">${i.image
     ? `<img src="${esc(src(i))}" alt="" decoding="async" width="40" height="40" onerror="this.style.opacity=0">`
-    : `<span class="ph">${esc(i.name[0].toUpperCase())}</span>`}</div>`;
+    : `<span class="ph">${esc((i.title[0] || "?").toUpperCase())}</span>`}</div>`;
 
 function merge() {
     items = csvItems.slice().sort((a, b) => a.number - b.number);
-    items.forEach((i, n) => { i.idx = n; i.lc = i.name.toLowerCase(); });
+    items.forEach((i, n) => { i.idx = n; i.lc = i.title.toLowerCase(); });
 }
 
 const cardHTML = (i, n, late) => `
-      <div class="cell${late ? " late" : ""}" style="--i:${n}"><button class="card ${has(i) ? "got" : "miss"}" data-name="${esc(i.name)}" aria-pressed="${has(i)}" aria-label="${esc(i.name)}, ${has(i) ? "acquired" : "not acquired"}">
+      <div class="cell${late ? " late" : ""}" style="--i:${n}"><button class="card ${has(i) ? "got" : "miss"}" data-name="${esc(i.name)}" aria-pressed="${has(i)}" aria-label="${esc(i.title)}, ${has(i) ? "acquired" : "not acquired"}">
         <span class="num">#${i.number}</span>
         <span class="stage">${img(i)}</span>
-        <b class="cn">${esc(i.name)}</b>
+        <b class="cn">${esc(i.title)}</b>
         <span class="tag">${has(i) ? "Acquired" : "Missing"}</span>
       </button></div>`;
 const rowHTML = (i, n, late) => `<tr class="${has(i) ? "got" : "miss"}${late ? " late" : ""}" data-name="${esc(i.name)}" style="--i:${n}">
         <td class="n">${i.number}</td><td>${img(i)}</td>
-        <td class="nm"><span class="nmt">${esc(i.name)}</span></td>
-        <td class="ac"><button class="sw" role="switch" aria-checked="${has(i)}" data-name="${esc(i.name)}" aria-label="Acquired: ${esc(i.name)}"><span class="knob"></span><span class="lbl">${has(i) ? "Yes" : "No"}</span></button></td>
+        <td class="nm"><span class="nmt">${esc(i.title)}</span></td>
+        <td class="ac"><button class="sw" role="switch" aria-checked="${has(i)}" data-name="${esc(i.name)}" aria-label="Acquired: ${esc(i.title)}"><span class="knob"></span><span class="lbl">${has(i) ? "Yes" : "No"}</span></button></td>
       </tr>`;
 
 const BUF = 6;
@@ -186,7 +198,7 @@ function update(force, late = true) {
     if (!host) return;
     const n = listView.length;
     const rel = -host.getBoundingClientRect().top;
-    const first = Math.max(0, Math.floor(rel / pitch));
+    const first = Math.min(Math.max(0, Math.floor(rel / pitch)), Math.max(0, totalRows - 1));
     const needS = first, needE = Math.min(totalRows, first + Math.ceil(innerHeight / pitch) + 1);
     if (!force && needS >= Math.floor(cs / cols) && needE <= Math.ceil(ce / cols)) return;
     const rs = Math.max(0, needS - BUF), re = Math.min(totalRows, needE + BUF);
@@ -312,7 +324,7 @@ function toggleItem(name) {
         if (el.classList.contains("sw")) { el.setAttribute("aria-checked", on); el.querySelector(".lbl").textContent = on ? "Yes" : "No"; }
         if (el.classList.contains("card")) {
             el.setAttribute("aria-pressed", on);
-            el.setAttribute("aria-label", `${name}, ${on ? "acquired" : "not acquired"}`);
+            el.setAttribute("aria-label", `${it.title}, ${on ? "acquired" : "not acquired"}`);
             el.querySelector(".tag").textContent = on ? "Acquired" : "Missing";
         }
     });
@@ -327,40 +339,45 @@ $("#list").addEventListener("click", e => {
     const b = e.target.closest("[data-name]");
     if (b) toggleItem(b.dataset.name);
 });
-$("#filters").addEventListener("click", e => { const b = e.target.closest("[data-filter]"); if (b) { morph(() => { filter = b.dataset.filter; render(); }); } });
+$("#filters").addEventListener("click", e => { const b = e.target.closest("[data-filter]"); if (b) { morph(() => { filter = b.dataset.filter; jumpTop(); render(); }); } });
 $("#views").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) { morph(() => { st.view = b.dataset.view; save(); render(); }); } });
+const jumpTop = () => {
+    const top = $("#list").getBoundingClientRect().top + scrollY - $(".toolbar").offsetHeight;
+    if (scrollY > top) scrollTo(0, Math.max(0, top));
+};
 let searchTimer;
 $("#q").addEventListener("input", e => {
     const v = e.target.value.trim().toLowerCase();
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { query = v; renderList(); }, 120);
+    searchTimer = setTimeout(() => { query = v; jumpTop(); renderList(); }, 120);
 });
 $("#q").addEventListener("keydown", e => {
-    if (e.key === "Escape") { e.target.value = ""; query = ""; renderList(); e.target.blur(); }
+    if (e.key === "Escape") { clearTimeout(searchTimer); e.target.value = ""; query = ""; jumpTop(); renderList(); e.target.blur(); }
+    if (e.key === "Enter") e.target.blur();
 });
-$("#theme").onclick = () => {
-    const flip = () => { st.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; save(); applyTheme(); };
-    if (reduceMotion()) return flip();
-    if (document.startViewTransition) {
-        const root = document.documentElement;
-        root.classList.add("themefade");
-        document.startViewTransition(flip).finished.finally(() => root.classList.remove("themefade"));
-    } else {
-        document.documentElement.classList.add("swap");
-        setTimeout(() => document.documentElement.classList.remove("swap"), 500);
-        flip();
-    }
+$("#reset").onclick = () => {
+    if (!confirm("Reset all progress? Export a backup first if you want to keep it.")) return;
+    st.acq = {}; save(); merge(); render(true);
 };
-$("#reset").onclick = () => { st.acq = {}; save(); merge(); render(true); };
-const download = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; a.click(); };
-$("#export").onclick = () => {
+const download = (href, name) => { const a = document.createElement("a"); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(href), 4000); };
+$("#export").onclick = async () => {
     const derived = items.every(i => i.image && nameFromImage(i.image) === i.name);
     const rows = [derived ? "number,image,acquired" : "number,image,name,acquired"].concat(items.map(i =>
-        (derived ? [i.number, i.image, has(i) ? "yes" : "no"] : [i.number, i.image, i.name, has(i) ? "yes" : "no"]).join(",")));
-    download(URL.createObjectURL(new Blob([rows.join("\n") + "\n"], { type: "text/csv" })), "data.csv");
+        (derived ? [i.number, i.image, has(i) ? "yes" : "no"] : [i.number, i.image, i.name, has(i) ? "yes" : "no"]).map(csvCell).join(",")));
+    const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+    try {
+        const file = new File([blob], "data.csv", { type: "text/csv" });
+        if (matchMedia("(pointer:coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: "Minecraft Item Tracker progress" });
+            return;
+        }
+    } catch (e) {
+        if (e && e.name === "AbortError") return;
+    }
+    download(URL.createObjectURL(blob), "data.csv");
 };
 document.addEventListener("keydown", e => {
-    if (e.key === "/" && document.activeElement !== $("#q")) { e.preventDefault(); $("#q").focus(); }
+    if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== $("#q")) { e.preventDefault(); $("#q").focus(); }
 });
 
 const fileInput = $("#importFile");
@@ -398,10 +415,85 @@ addEventListener("scroll", () => {
 addEventListener("scroll", onScroll, { passive: true });
 toTop.onclick = () => scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
 
-applyTheme();
+const bar = $(".toolbar"), narrow = matchMedia("(max-width:600px)");
+let lastY = scrollY;
+addEventListener("scroll", () => {
+    const y = scrollY, d = y - lastY;
+    if (y <= 0) { bar.classList.remove("away"); lastY = 0; return; }
+    if (Math.abs(d) < 8) return;
+    const atEnd = y >= document.documentElement.scrollHeight - innerHeight - 2;
+    if (!atEnd) bar.classList.toggle("away", narrow.matches && d > 0 && y > 200 && document.activeElement !== $("#q"));
+    lastY = y;
+}, { passive: true });
+addEventListener("touchmove", () => { if (document.activeElement === $("#q")) $("#q").blur(); }, { passive: true });
+const saveScroll = () => { st.scroll = Math.round(scrollY); save(); };
+addEventListener("pagehide", saveScroll);
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveScroll(); });
+
+const scrub = $("#scrub"), thumb = $("#thumb"), tip = $("#tip"), THUMB_H = 56;
+let scrubHide = 0, scrubRaf = 0, dragging = false, grab = 0;
+const maxScroll = () => Math.max(1, document.documentElement.scrollHeight - innerHeight);
+const range = () => Math.max(1, scrub.clientHeight - THUMB_H);
+
+function placeThumb() {
+    scrubRaf = 0;
+    const ratio = Math.min(1, Math.max(0, scrollY / maxScroll())), y = ratio * range();
+    thumb.style.transform = `translateY(${y}px)`;
+    tip.style.top = y + "px";
+    if (!dragging || !listView.length || !host) return;
+    let idx = listView.length - 1;
+    if (ratio < 0.995) {
+        const rel = Math.max(0, -host.getBoundingClientRect().top + 60);
+        idx = Math.min(listView.length - 1, Math.floor(rel / pitch) * cols);
+    }
+    const it = listView[idx];
+    if (it) tip.innerHTML = `<b>${esc(it.title)}</b><small>#${it.number}</small>`;
+}
+
+function wake() {
+    if (document.documentElement.scrollHeight < innerHeight * 2.5) return;
+    scrub.classList.add("show");
+    clearTimeout(scrubHide);
+    if (!dragging) scrubHide = setTimeout(() => scrub.classList.remove("show"), 1500);
+}
+
+addEventListener("scroll", () => { wake(); if (!scrubRaf) scrubRaf = requestAnimationFrame(placeThumb); }, { passive: true });
+addEventListener("resize", placeThumb);
+thumb.addEventListener("pointerdown", e => {
+    dragging = true;
+    grab = e.clientY - thumb.getBoundingClientRect().top;
+    thumb.setPointerCapture(e.pointerId);
+    scrub.classList.add("drag", "show");
+    clearTimeout(scrubHide);
+    placeThumb();
+    e.preventDefault();
+});
+thumb.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const r = (e.clientY - grab - scrub.getBoundingClientRect().top) / range();
+    scrollTo(0, Math.min(1, Math.max(0, r)) * maxScroll());
+});
+const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    scrub.classList.remove("drag");
+    wake();
+};
+thumb.addEventListener("pointerup", endDrag);
+thumb.addEventListener("pointercancel", endDrag);
+
+if ("serviceWorker" in navigator) {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+syncMeta();
 fetch(CSV_FILE)
     .then(r => { if (!r.ok) throw 0; return r.text(); })
-    .then(t => { csvItems = parseCSV(t); merge(); render(true); })
+    .then(t => { csvItems = parseCSV(t); }, () => { throw 0; })
+    .then(() => {
+        merge(); render(true);
+        if (st.scroll > 0) { scrollTo(0, st.scroll); lastY = scrollY; }
+    })
     .catch(() => {
         $("#list").innerHTML = "";
         $("#error").innerHTML = '<div class="err">Could not load data.csv. Browsers block this when the page is opened by double-clicking. Run <b>python -m http.server</b> in this folder and open <b>http://localhost:8000</b>.</div>';

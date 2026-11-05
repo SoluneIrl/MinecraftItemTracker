@@ -1,8 +1,7 @@
 {
-  "name": "Minecraft Item Tracker",
+  "name": "minecraft-item-tracker",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Every item you have collected, all in one place.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

@@ -12,6 +12,9 @@ IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif")
 
 GIF_FRAME_MODE = "first"
 
+if not ASSETS_DIR.is_dir():
+    raise SystemExit(f"Folder not found: {ASSETS_DIR}")
+
 renamed_count = 0
 
 for file in list(ASSETS_DIR.iterdir()):
@@ -47,18 +50,24 @@ for file in list(ASSETS_DIR.iterdir()):
     if file == new_file:
         continue
 
-    if new_file.exists():
+    case_only = new_file.name.lower() == file.name.lower()
+
+    if new_file.exists() and not case_only:
         print(f"[CONFLICT] {file.name} -> {new_file.name}")
         continue
 
-    file.rename(new_file)
+    if case_only:
+        tmp = file.with_name(file.name + ".tmp-rename")
+        file.rename(tmp)
+        tmp.rename(new_file)
+    else:
+        file.rename(new_file)
 
     renamed_count += 1
 
     print(f"[RENAMED] {file.name} -> {new_file.name}")
 
 def pick_gif_frame(img):
-    """Seek to the chosen frame of a GIF and return it as RGBA."""
     total_frames = getattr(img, "n_frames", 1)
 
     if GIF_FRAME_MODE == "middle":
@@ -97,7 +106,7 @@ for file in list(ASSETS_DIR.iterdir()):
                 frame = pick_gif_frame(img)
                 frames_info = f" (frame from {getattr(img, 'n_frames', 1)})"
             else:
-                frame = img
+                frame = img.convert("RGBA")
                 frames_info = ""
 
             frame.save(
@@ -156,8 +165,8 @@ for stem, filename in available_images.items():
 
         row["image"] = filename
 
-        if row["acquired"].strip().lower() != "yes":
-            row["acquired"] = "no"
+        acquired = (row.get("acquired") or "").strip().lower()
+        row["acquired"] = "yes" if acquired in ("yes", "y", "true", "1") else "no"
 
     else:
 
