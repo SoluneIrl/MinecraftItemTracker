@@ -408,7 +408,7 @@ if (matchMedia("(hover:hover) and (pointer:fine)").matches) $("#q").placeholder 
 
 const toTop = $("#toTop");
 addEventListener("scroll", () => {
-    const on = scrollY >= 700;
+    const on = scrollY >= 700 && scrollY < document.documentElement.scrollHeight - innerHeight - 120;
     toTop.classList.toggle("show", on);
     toTop.tabIndex = on ? 0 : -1;
 }, { passive: true });

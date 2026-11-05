@@ -1,7 +1,7 @@
 {
   "name": "minecraft-item-tracker",
   "version": "1.0.0",
-  "description": "Every item you have collected, all in one place.",
+  "description": "Gotta collect ’em all, and this is where you keep score.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
